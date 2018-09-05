@@ -1,6 +1,6 @@
 # cauchy-kernel-interpolation-accuracy
 
-Code for checking accuracy of interpolation scheme underlying FIt-SNE.
+Code for checking accuracy of interpolation scheme underlying FIt-SNE. The number of threads is hardcoded as `nthreads`. Currently, only 2D code works.
 
 Compile:
 
