@@ -5,4 +5,4 @@ Code for checking accuracy of interpolation scheme underlying FIt-SNE. The numbe
 Compile:
 
 
-`g++ nbodyfft.cpp main.cpp -O3 -o nbody  -lfftw3 -lm  -std=c++11`
+`g++ nbodyfft.cpp main.cpp -O3 -o nbody  -lfftw3 -lm  -std=c++11 -pthread`
