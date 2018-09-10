@@ -244,6 +244,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 	//Locsort
 
 	//FILE *f = fopen("iarr.txt", "w");
+        //Parallelize. separate charges
 	double * xsort =(double*) malloc(n* sizeof(double));
 	double * ysort =(double*) malloc(n* sizeof(double));
 	for (int i=0; i<n; i++){
@@ -262,6 +263,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 
 
 	//tlocssort is the translated locations
+        //396 in fortran code. not worth parallelizing. Pull out the boxl
 	double * xsp = (double *) malloc(n*sizeof(double));
 	double * ysp = (double *) malloc(n*sizeof(double));
 	for (int ibox=0; ibox<nboxes;ibox++){
@@ -283,6 +285,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 	//Get the L_j vals
 
 
+        //parallelize
 	double * ydiff = (double*) malloc(n*nterms*sizeof(double));
 	double * yprods = (double*) malloc(n*nterms*sizeof(double));
 	for (int j =0; j < n; j++) {
@@ -294,6 +297,8 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 	}
 
 
+        //compute inverse of prods in line 66 of my code and just multiply
+        //Parallelize
 	double * svalsx = (double*) malloc(n*nterms*sizeof(double));
 	for (int j =0; j < n; j++) {
 		for (int i =0; i < nterms; i++) {
@@ -325,6 +330,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 	}
 
 
+        //Make prods be 1/prods
 	double * svalsy = (double*) malloc(n*nterms*sizeof(double));
 	for (int j =0; j < n; j++) {
 		for (int i =0; i < nterms; i++) {
@@ -373,17 +379,17 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
                             // inner loop
                             {
                                     int istart = ibox*nterms*nterms;
-                                    for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
-                                            for (int idim=0;idim<ndim; idim++){
-                                                    for (int impx=0; impx<nterms; impx++){
-                                                            for (int impy=0; impy<nterms; impy++){
-                                                                    int ii = (impx)*nterms + impy;
-                                                                    mpol[idim + (istart+ii)*ndim] += svalsy[impy*n + i]*svalsx[impx*n + i]*chargessort[idim*n+i];
+                                    for (int impx=0; impx<nterms; impx++){
+                                            for (int impy=0; impy<nterms; impy++){
+                                                for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
+                                                        double temp = svalsy[impy*n + i]*svalsx[impx*n + i];
+                                                        int istartii = istart+(impx)*nterms + impy;
+                                                        for (int idim=0;idim<ndim; idim++){
+                                                                    mpol[idim + (istartii)*ndim] += temp*chargessort[idim*n+i];
                                                             }
                                                     }
                                             }
                                     }
-
                             }
                         }
 
@@ -506,6 +512,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
     clock_gettime(CLOCK_MONOTONIC, &end2);
     printf("Step 2 FFT (not threaded): %.2lf ms\n", (diff(start2,end2))/(double)1E6);
 
+    //boxes, j, then l, i, then ndim, 3 or 5 ms.
     clock_gettime(CLOCK_MONOTONIC, &start3);
 	double * pot = (double *) calloc(n*ndim,sizeof(double));
 {
@@ -521,16 +528,16 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
                             // inner loop
                             {
                                 int istart = ibox*nterms*nterms;
-                                for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
-                                        for (int idim=0;idim<ndim; idim++){
-                                                //outpot[i*ndim +idim] = 0;
-                                                for (int j=0; j<nterms; j++){
-                                                        for (int l=0; l<nterms; l++){
-                                                                int ii = j*nterms + l;
-                                                                pot[i*ndim +idim]  += svalsx[j*n + i]*svalsy[l*n+i]*loc[(istart+ii)*ndim+idim];
-                                                        }
-                                                }
-                                        }
+                                for (int j=0; j<nterms; j++){
+                                    for (int l=0; l<nterms; l++){
+                                        for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
+                                                int tempii = (istart+j*nterms + l)*ndim;
+                                                double temp = svalsx[j*n + i]*svalsy[l*n+i];
+                                                for (int idim=0;idim<ndim; idim++){
+                                                        pot[i*ndim +idim]  += temp*loc[tempii+idim];
+                                                    }
+                                            }
+                                    }
                                 }
                             }
                         }
@@ -551,6 +558,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 		//printf("pot[%d]= %lf\n", i, pot[i]);
 	}
 
+//parallelize
 	for (int i=0; i<n;i++){
 		for (int j=0; j<ndim;j++){
 			outpot[j*n+iarr[i]] = pot[i*ndim+j];
