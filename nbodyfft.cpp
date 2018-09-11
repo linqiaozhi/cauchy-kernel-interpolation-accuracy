@@ -366,7 +366,6 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 
 
 
-{
         // Pre loop
         std::vector<std::thread> threads(nthreads);
         for (int t = 0; t < nthreads; t++) {
@@ -376,28 +375,30 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
                         // loop over all items
                         for(int ibox = bi;ibox<ei;ibox++)
                         {
+                        //for(int ibox = 0;ibox<nboxes;ibox++)
+                        //{
                             // inner loop
                             {
                                     int istart = ibox*nterms*nterms;
                                     for (int impx=0; impx<nterms; impx++){
                                             for (int impy=0; impy<nterms; impy++){
-                                                for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
-                                                        double temp = svalsy[impy*n + i]*svalsx[impx*n + i];
-                                                        int istartii = istart+(impx)*nterms + impy;
-                                                        for (int idim=0;idim<ndim; idim++){
-                                                                    mpol[idim + (istartii)*ndim] += temp*chargessort[idim*n+i];
+                                                int istartii = istart+(impx)*nterms + impy;
+                                                for (int idim=0;idim<ndim; idim++){
+                                                        double temp2 = 0;
+                                                        for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
+                                                                double temp = svalsy[impy*n + i]*svalsx[impx*n + i];
+                                                                temp2 += temp*chargessort[idim*n+i];
                                                             }
+                                                            mpol[idim + (istartii)*ndim] += temp2;
                                                     }
                                             }
                                     }
                             }
                         }
-
                     },t*nboxes/nthreads,(t+1)==nthreads?nboxes:(t+1)*nboxes/nthreads,t));
         }
         std::for_each(threads.begin(),threads.end(),[](std::thread& x){x.join();});
         // Post loop
-  }
 
     clock_gettime(CLOCK_MONOTONIC, &end);
     printf("Step 1 loop (%d threads): %.2lf ms\n", nthreads, (diff(start,end))/(double)1E6);
@@ -527,16 +528,18 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
                         {
                             // inner loop
                             {
-                                int istart = ibox*nterms*nterms;
-                                for (int j=0; j<nterms; j++){
-                                    for (int l=0; l<nterms; l++){
-                                        for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
+                            int istart = ibox*nterms*nterms;
+                                for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
+                                    double tempi = 0;
+                                    for (int idim=0;idim<ndim; idim++){
+                                        for (int j=0; j<nterms; j++){
+                                            for (int l=0; l<nterms; l++){
                                                 int tempii = (istart+j*nterms + l)*ndim;
                                                 double temp = svalsx[j*n + i]*svalsy[l*n+i];
-                                                for (int idim=0;idim<ndim; idim++){
-                                                        pot[i*ndim +idim]  += temp*loc[tempii+idim];
-                                                    }
+                                                tempi  += temp*loc[tempii+idim];
                                             }
+                                        }
+                                    pot[i*ndim +idim] += tempi;
                                     }
                                 }
                             }
