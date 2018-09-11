@@ -517,7 +517,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
     clock_gettime(CLOCK_MONOTONIC, &start3);
 	double * pot = (double *) calloc(n*ndim,sizeof(double));
 {
-        // Pre loop
+      // Pre loop
         std::vector<std::thread> threads(nthreads);
         for (int t = 0; t < nthreads; t++) {
             threads[t] = std::thread(std::bind(
@@ -528,18 +528,19 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
                         {
                             // inner loop
                             {
-                            int istart = ibox*nterms*nterms;
+                                int istart = ibox*nterms*nterms;
                                 for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
-                                    double tempi = 0;
-                                    for (int idim=0;idim<ndim; idim++){
-                                        for (int j=0; j<nterms; j++){
-                                            for (int l=0; l<nterms; l++){
-                                                int tempii = (istart+j*nterms + l)*ndim;
-                                                double temp = svalsx[j*n + i]*svalsy[l*n+i];
-                                                tempi  += temp*loc[tempii+idim];
+                                        
+                                        for (int idim=0;idim<ndim; idim++){
+                                            double temp2 =0;
+                                            for (int j=0; j<nterms; j++){
+                                                for (int l=0; l<nterms; l++){
+                                                        int tempii = (istart+j*nterms + l)*ndim;
+                                                        double temp = svalsx[j*n + i]*svalsy[l*n+i];
+                                                        temp2  += temp*loc[tempii+idim];
+                                                    }
                                             }
-                                        }
-                                    pot[i*ndim +idim] += tempi;
+                                            pot[i*ndim +idim] += temp2;
                                     }
                                 }
                             }
