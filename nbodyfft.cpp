@@ -66,6 +66,7 @@ int precompute2( double xmax, double xmin, double ymax, double ymin,  int nlat,
 				prods[i] = prods[i] * (xpts[i] - xpts[j]);
 			}
 		}
+                prods[i] = 1/prods[i];
 //		printf("Prods[%d] xpts[%d] = %lf, %lf\n", i,i, prods[i], xpts[i]);
 	}
 
@@ -247,14 +248,34 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
         //Parallelize. separate charges
 	double * xsort =(double*) malloc(n* sizeof(double));
 	double * ysort =(double*) malloc(n* sizeof(double));
-	for (int i=0; i<n; i++){
-		xsort[i] = xs[iarr[i]];
-		ysort[i] = ys[iarr[i]];
-		//fprintf(f, "%d,", iarr[i]);
-		for (int idim=0; idim<ndim; idim++){
-			chargessort[idim*n+i] = charges[idim*n +iarr[i]];
-		}
-	}
+
+
+
+        {
+
+        std::vector<std::thread> threads(nthreads);
+        for (int t = 0; t < nthreads; t++) {
+            threads[t] = std::thread(std::bind(
+                    [&](const int bi, const int ei, const int t)
+                    {
+                        // loop over all items
+                        for(int i = bi;i<ei;i++)
+                        {
+                            {
+                                xsort[i] = xs[iarr[i]];
+                                ysort[i] = ys[iarr[i]];
+                                //fprintf(f, "%d,", iarr[i]);
+                                for (int idim=0; idim<ndim; idim++){
+                                        chargessort[idim*n+i] = charges[idim*n +iarr[i]];
+                                }
+
+                            }
+                        }
+                    },t*n/nthreads,(t+1)==nthreads?n:(t+1)*n/nthreads,t));
+        }
+        std::for_each(threads.begin(),threads.end(),[](std::thread& x){x.join();});
+        }
+
 
 	for (int i=0; i<10; i++){
 //		printf("Charge %d at %f,%f, sorted %f,%f: %f, sorted; %f\n", i, xs[i], ys[i], xsort[i],xsort[i], charges[i], chargessort[0*n+i]);
@@ -267,58 +288,89 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 	double * xsp = (double *) malloc(n*sizeof(double));
 	double * ysp = (double *) malloc(n*sizeof(double));
 	for (int ibox=0; ibox<nboxes;ibox++){
-		for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
 			double xmin = boxl[ibox];
 			double xmax = boxr[ibox];
-			xsp[i] = ((xsort[i] - xmin)/(xmax - xmin))*2 - 1;
-
 			double ymin = boxl[nboxes+ ibox];
 			double ymax = boxr[nboxes+ ibox];
+		for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
+			xsp[i] = ((xsort[i] - xmin)/(xmax - xmin))*2 - 1;
 			ysp[i] = ((ysort[i] - ymin)/(ymax - ymin))*2 - 1;
 			//printf("i %d  %f,%f  tlocssort[i] %f,%f  xmin %f xmax %f, ymin %f ymax %f\n", i, xsort[i],ysort[i],  xsp[i],ysp[i], xmin, xmax, ymin, ymax);
 		}
 	}
 
-        clock_gettime(CLOCK_MONOTONIC, &end10);
-        printf("Initializing and sorting (not threaded): %.2lf ms\n", (diff(start10,end10))/(double)1E6);
-        clock_gettime(CLOCK_MONOTONIC, &start20);
 	//Get the L_j vals
 
+        clock_gettime(CLOCK_MONOTONIC, &end10);
+        printf("Initializing and sorting (%d threads): %.2lf ms\n",nthreads, (diff(start10,end10))/(double)1E6);
+        clock_gettime(CLOCK_MONOTONIC, &start20);
 
         //parallelize
 	double * ydiff = (double*) malloc(n*nterms*sizeof(double));
 	double * yprods = (double*) malloc(n*nterms*sizeof(double));
-	for (int j =0; j < n; j++) {
-		yprods[j] = 1;
-		for (int i =0; i < nterms; i++) {
-			ydiff[j + i*n] = xsp[j] - xpts[i];
-			yprods[j] = yprods[j]*ydiff[j+i*n];
-		}
-	}
+
+
+        {
+
+        std::vector<std::thread> threads(nthreads);
+        for (int t = 0; t < nthreads; t++) {
+            threads[t] = std::thread(std::bind(
+                    [&](const int bi, const int ei, const int t)
+                    {
+                        // loop over all items
+                        for(int j = bi;j<ei;j++)
+                        {
+                            {
+
+                                yprods[j] = 1;
+                                for (int i =0; i < nterms; i++) {
+                                        ydiff[j + i*n] = xsp[j] - xpts[i];
+                                        yprods[j] = yprods[j]*ydiff[j+i*n];
+                                }
+                            }
+                        }
+                    },t*n/nthreads,(t+1)==nthreads?n:(t+1)*n/nthreads,t));
+        }
+        std::for_each(threads.begin(),threads.end(),[](std::thread& x){x.join();});
+        }
 
 
         //compute inverse of prods in line 66 of my code and just multiply
         //Parallelize
 	double * svalsx = (double*) malloc(n*nterms*sizeof(double));
-	for (int j =0; j < n; j++) {
-		for (int i =0; i < nterms; i++) {
-			if ( fabs(ydiff[j+i*n]) >= 1e-6) {
-				svalsx[j+i*n] = yprods[j]/prods[i]/ydiff[j+i*n];
-			}
-			if ( fabs(ydiff[j+i*n]) < 1e-6) {
-				svalsx[j+i*n] =  1/prods[i];
-				for (int k =0; k < nterms; k++) {
-					if(i != k) {
-						svalsx[j+i*n] = svalsx[j+i*n] *ydiff[j+k*n];
-					}
-				}
-			}
-		}
-	}
 
 
+        {
 
+        std::vector<std::thread> threads(nthreads);
+        for (int t = 0; t < nthreads; t++) {
+            threads[t] = std::thread(std::bind(
+                    [&](const int bi, const int ei, const int t)
+                    {
+                        // loop over all items
+                        for(int j = bi;j<ei;j++)
+                        {
+                            {
 
+                                for (int i =0; i < nterms; i++) {
+                                        if ( fabs(ydiff[j+i*n]) >= 1e-6) {
+                                                svalsx[j+i*n] = yprods[j]*prods[i]/ydiff[j+i*n];
+                                        }
+                                        if ( fabs(ydiff[j+i*n]) < 1e-6) {
+                                                svalsx[j+i*n] =  prods[i];
+                                                for (int k =0; k < nterms; k++) {
+                                                        if(i != k) {
+                                                                svalsx[j+i*n] = svalsx[j+i*n] *ydiff[j+k*n];
+                                                        }
+                                                }
+                                        }
+                                }
+                            }
+                        }
+                    },t*n/nthreads,(t+1)==nthreads?n:(t+1)*n/nthreads,t));
+        }
+        std::for_each(threads.begin(),threads.end(),[](std::thread& x){x.join();});
+        }
 
 	//L_j for y
 	for (int j =0; j < n; j++) {
@@ -332,28 +384,39 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 
         //Make prods be 1/prods
 	double * svalsy = (double*) malloc(n*nterms*sizeof(double));
-	for (int j =0; j < n; j++) {
-		for (int i =0; i < nterms; i++) {
-			if ( fabs(ydiff[j+i*n]) >= 1e-6) {
-				svalsy[j+i*n] = yprods[j]/prods[i]/ydiff[j+i*n];
-					//printf("svals[%d] = %lf\n", j+i*n, svals[j+i*n]);
-			}
-			if ( fabs(ydiff[j+i*n]) < 1e-6) {
-				svalsy[j+i*n] =  1/prods[i];
-				for (int k =0; k < nterms; k++) {
-					if(i != k) {
-						svalsy[j+i*n] = svalsy[j+i*n] *ydiff[j+k*n];
-					}
-				}
-			}
-		}
-	}
-	for (int j =0; j < 5; j++) {
-		//printf("svals: %f, %f\n", svalsx[j], svalsy[j]);
-	}
+        {
 
+        std::vector<std::thread> threads(nthreads);
+        for (int t = 0; t < nthreads; t++) {
+            threads[t] = std::thread(std::bind(
+                    [&](const int bi, const int ei, const int t)
+                    {
+                        // loop over all items
+                        for(int j = bi;j<ei;j++)
+                        {
+                            {
+                                    for (int i =0; i < nterms; i++) {
+                                            if ( fabs(ydiff[j+i*n]) >= 1e-6) {
+                                                    svalsy[j+i*n] = yprods[j]*prods[i]/ydiff[j+i*n];
+                                                            //printf("svals[%d] = %lf\n", j+i*n, svals[j+i*n]);
+                                            }
+                                            if ( fabs(ydiff[j+i*n]) < 1e-6) {
+                                                    svalsy[j+i*n] =  prods[i];
+                                                    for (int k =0; k < nterms; k++) {
+                                                            if(i != k) {
+                                                                    svalsy[j+i*n] = svalsy[j+i*n] *ydiff[j+k*n];
+                                                            }
+                                                    }
+                                            }
+                                    }
+                            }
+                        }
+                    },t*n/nthreads,(t+1)==nthreads?n:(t+1)*n/nthreads,t));
+        }
+        std::for_each(threads.begin(),threads.end(),[](std::thread& x){x.join();});
+        }
         clock_gettime(CLOCK_MONOTONIC, &end20);
-        printf("Getting svals (not threaded): %.2lf ms\n", (diff(start20,end20))/(double)1E6);
+        printf("Getting svals (%d threads): %.2lf ms\n", nthreads,(diff(start20,end20))/(double)1E6);
 
 	//Compute mpol, which is interpolation
 
