@@ -145,7 +145,7 @@ int test2d(int ndim) {
 	double time_spent1 = (end.tv_nsec - start.tv_nsec)/(double)1E6;
         printf("Precomputation took %.2lf ms\n", time_spent1);
         clock_gettime(CLOCK_MONOTONIC, &start2);
-        unsigned int nthreads = 8;
+        unsigned int nthreads = 24;
 	nbodyfft2(N,ndim,xs, ys,chargesQij, nlat, nterms,boxl, boxr,  prods, xpts, xptsall,yptsall, irearr, zkvalf,potentialQij,nthreads);
         clock_gettime(CLOCK_MONOTONIC, &end2);
 	double time_spent2 = (diff(start2,end2))/(double)1E6;
