@@ -531,7 +531,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 //parallelize
 	PARALLEL_FOR(nthreads,n,{
 		for (int j=0; j<ndim;j++){
-			outpot[j*n+iarr[loop_i]] = pot[loop_i*ndim+j];
+			outpot[iarr[loop_i]*ndim+j] = pot[loop_i*ndim+j];
 		}
 	});
     clock_gettime(CLOCK_MONOTONIC, &end3);
