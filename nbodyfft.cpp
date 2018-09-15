@@ -520,19 +520,19 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 
 
 
-    clock_gettime(CLOCK_MONOTONIC, &end3);
-    printf("Step 3 (%d threads): %.2lf ms\n", nthreads, (diff(start3,end3))/(double)1E6);
 
 	for (int i=0; i<n;i++){
 		//printf("pot[%d]= %lf\n", i, pot[i]);
 	}
 
 //parallelize
-	for (int i=0; i<n;i++){
+	PARALLEL_FOR(nthreads,n,{
 		for (int j=0; j<ndim;j++){
-			outpot[j*n+iarr[i]] = pot[i*ndim+j];
+			outpot[j*n+iarr[loop_i]] = pot[loop_i*ndim+j];
 		}
-	}
+	});
+    clock_gettime(CLOCK_MONOTONIC, &end3);
+    printf("Step 3 (with unsort) (%d threads): %.2lf ms\n", nthreads, (diff(start3,end3))/(double)1E6);
 	free(boxcount); free(boxcounti); free(boxsort); free(iarr); free(chargessort);
 	free(boxoffset); free(ydiff); free(yprods);free(svalsx);free(svalsy);free(mpol); free(loc);
 	free(pot);
