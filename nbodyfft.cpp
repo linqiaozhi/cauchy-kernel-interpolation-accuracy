@@ -255,11 +255,13 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
     	PARALLEL_FOR(nthreads,n, {
 		xsort[loop_i] = xs[iarr[loop_i]];
 		ysort[loop_i] = ys[iarr[loop_i]];
+		});
 		//fprintf(f, "%d,", iarr[i]);
 		for (int idim=0; idim<ndim; idim++){
+      PARALLEL_FOR(nthreads,n,{
 			chargessort[idim*n+loop_i] = charges[idim*n +iarr[loop_i]];
-		}
 	    });
+		}
 
 	for (int i=0; i<10; i++){
 //		printf("Charge %d at %f,%f, sorted %f,%f: %f, sorted; %f\n", i, xs[i], ys[i], xsort[i],xsort[i], charges[i], chargessort[0*n+i]);
@@ -271,14 +273,15 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
         //396 in fortran code. not worth parallelizing. Pull out the boxl
 	double * xsp = (double *) malloc(n*sizeof(double));
 	double * ysp = (double *) malloc(n*sizeof(double));
+	double bsizeinv = 2/(boxr[1]-boxl[1]);
 	for (int ibox=0; ibox<nboxes;ibox++){
 			double xmin = boxl[ibox];
 			double xmax = boxr[ibox];
 			double ymin = boxl[nboxes+ ibox];
 			double ymax = boxr[nboxes+ ibox];
 		for (int i=boxoffset[ibox]; i<boxoffset[ibox+1];i++){
-			xsp[i] = ((xsort[i] - xmin)/(xmax - xmin))*2 - 1;
-			ysp[i] = ((ysort[i] - ymin)/(ymax - ymin))*2 - 1;
+			xsp[i] = (xsort[i] - xmin)*bsizeinv - 1;
+			ysp[i] = (ysort[i] - ymin)*bsizeinv - 1;
 			//printf("i %d  %f,%f  tlocssort[i] %f,%f  xmin %f xmax %f, ymin %f ymax %f\n", i, xsort[i],ysort[i],  xsp[i],ysp[i], xmin, xmax, ymin, ymax);
 		}
 	}
