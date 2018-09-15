@@ -392,25 +392,6 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 	int nfour = 2*nterms*nlat;
 
     clock_gettime(CLOCK_MONOTONIC, &start2);
-	for (int idim =0; idim< ndim; idim++){
-		double * mpolsort = (double *) calloc(sizeof(double), nn);
-		for (int i =0; i< nn; i++){
-			mpolsort[irearr[i]] = mpol[i*ndim+idim];
-		}
-		for (int j =0; j < 100; j++) {
-			//	printf("mpolsort[%d]=%lf\n",j, mpolsort[j]);
-		}
-
-		double * zmpol = (double *) calloc(sizeof(double), nfour*nfour);
-		for (int i =0; i< nfourh; i++){
-			for (int j =0; j< nfourh; j++){
-				int ii =  i*nfourh +j;
-				zmpol[i*nfour + j] = mpolsort[ii];
-				//printf("zmpol[%d,%d] = %lf\n", i,j , mpolsort[ii]);
-			}
-		}
-
-
 		fftw_plan p,p2;
 		//FFT of zmpol
 		//printf("doing %d, by %d\n", nfour, nfour);
@@ -427,6 +408,25 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 		p = fftw_plan_dft_r2c_2d(nfour,nfour, zmpoli, zmpolf, FFTW_ESTIMATE );
 		p2 = fftw_plan_dft_c2r_2d(nfour,nfour, zmpolf, zmpolfo, FFTW_ESTIMATE);
 		//wisdom_string = fftw_export_wisdom_to_string();
+		double * mpolsort = (double *) calloc(sizeof(double), nn);
+		double * zmpol = (double *) calloc(sizeof(double), nfour*nfour);
+
+	for (int idim =0; idim< ndim; idim++){
+		for (int i =0; i< nn; i++){
+			mpolsort[irearr[i]] = mpol[i*ndim+idim];
+		}
+		for (int j =0; j < 100; j++) {
+			//	printf("mpolsort[%d]=%lf\n",j, mpolsort[j]);
+		}
+
+		for (int i =0; i< nfourh; i++){
+			for (int j =0; j< nfourh; j++){
+				int ii =  i*nfourh +j;
+				zmpol[i*nfour + j] = mpolsort[ii];
+				//printf("zmpol[%d,%d] = %lf\n", i,j , mpolsort[ii]);
+			}
+		}
+
 
 
 		for (int i =0; i< nfour*nfour; i++){
@@ -482,6 +482,7 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 			//printf("loc[%d]: %lf\n", i, loc[i]);
 		}
 
+	}
 		fftw_free(zmpoli);
 		fftw_free(zmpolf);
 		fftw_free(zmpolfo);
@@ -489,7 +490,6 @@ int nbodyfft2(int n, int ndim, double* xs, double *ys, double * charges, int
 		fftw_destroy_plan(p2);
 		free(zmpol);
 		free(mpolsort);
-	}
 
 
     clock_gettime(CLOCK_MONOTONIC, &end2);
