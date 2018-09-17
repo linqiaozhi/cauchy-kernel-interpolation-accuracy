@@ -844,7 +844,7 @@ int nbodyfft(int n, int ndim, double* locs, double * charges, int nboxes, int nt
 
 	for (int i=0; i<n;i++){
 		for (int j=0; j<ndim;j++){
-			outpot[j*n+iarr[i]] = pot[i*ndim+j];
+			outpot[iarr[i]*ndim +j] = pot[i*ndim+j];
 		}
 	}
 	free(boxoffset); free(boxcount); free(boxcounti);
