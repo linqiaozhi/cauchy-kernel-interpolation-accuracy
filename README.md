@@ -5,8 +5,10 @@ Code for checking accuracy of interpolation scheme underlying FIt-SNE. The numbe
 Compile:
 
 
-`g++ nbodyfft.cpp main.cpp -O3 -o nbody  -lfftw3 -lm  -std=c++11 -pthread -fopenmp -DOPENMP_THREADING`
+`g++ nbodyfft.cpp main.cpp -O3 -o nbody  -lfftw3 -lm  -std=c++11 -fopenmp`
 
 or 
 
-`g++ nbodyfft.cpp main.cpp -O3 -o nbody  -lfftw3 -lm  -std=c++11 -pthread  -DNATIVE_THREADING`
+`g++ nbodyfft.cpp main.cpp -O3 -o nbody  -lfftw3 -lm  -std=c++11 -pthread`
+
+Depending on whether you want to use OpeMP or C++11 threading

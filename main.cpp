@@ -196,8 +196,8 @@ int main() {
 	//test1d(5);
 
 	//printf("Computing one potential in 2D:\n");
-	test1d(4);
-	//test2d(4);
+	//test1d(4);
+	test2d(4);
 
 	return 1;
 }
