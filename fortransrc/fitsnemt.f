@@ -49,10 +49,10 @@ C$OMP END PARALLEL
 C$      call prinf('nthreads=*',nthreads,1)      
 
 
-      bmin = -50.0d0
-      bmax = 50.0d0
+      bmin = -10.0d0
+      bmax = 10.0d0
 
-      nlat = 100
+      nlat = 50
 
       nboxes = nlat*nlat
       nterms = 3
