@@ -1,4 +1,5 @@
 #include "nbodyfft.h"
+#include "omp.h"
 
 
 using namespace std;
@@ -154,6 +155,7 @@ void n_body_fft_2d(int N, int n_terms, double *xs, double *ys, double *chargesQi
     auto *fft_w_coefficients = new complex<double>[n_fft_coeffs * (n_fft_coeffs / 2 + 1)];
     auto *fft_output = new double[n_fft_coeffs * n_fft_coeffs]();
 
+    fftw_plan_with_nthreads(omp_get_max_threads());
     fftw_plan plan_dft, plan_idft;
     plan_dft = fftw_plan_dft_r2c_2d(n_fft_coeffs, n_fft_coeffs, fft_input,
                                     reinterpret_cast<fftw_complex *>(fft_w_coefficients), FFTW_ESTIMATE);

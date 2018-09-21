@@ -3,7 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h> // pulls in declaration of malloc, free
-#include <fftw3.h>
+#include <omp.h>
 
 //g++ nbody.cpp main.cpp -O3 -o 1dnbody
 double squared_cauchy(double x, double y) {
@@ -129,6 +129,8 @@ int test2d(int ndim) {
 
 	auto *pot = new double[n * ndim]();
 	clock_t begin = clock();
+    int dummy = fftw_init_threads();
+    omp_set_num_threads(omp_get_max_threads());
 	precompute_2d(xmax, xmin, ymax, ymin, n_boxes_per_dim, n_interpolation_points,
 			&squared_cauchy_2d,
 			box_lower_bounds, box_upper_bounds, y_tilde_spacings, x_tilde, y_tilde, fft_kernel_tilde);
